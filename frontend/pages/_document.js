@@ -6,9 +6,8 @@ export default class MyDocument extends Document {
       <Html lang="en">
         <Head>
           <meta charSet="utf-8" />
-          <style>{`body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }`}</style>
         </Head>
-        <body className="bg-navy-950 text-slate-100">
+        <body>
           <Main />
           <NextScript />
         </body>

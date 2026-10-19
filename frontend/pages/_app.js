@@ -6,14 +6,14 @@ export default function App({ Component, pageProps }) {
   return (
     <>
       <Head>
-        <title>AWS-CloudX-HoneyPot Dashboard</title>
+        <title>HaaS Security Dashboard</title>
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1"
         />
         <meta
           name="description"
-          content="Local honeypot monitoring dashboard using synthetic Cowrie events."
+          content="Monitor Cowrie honeypot events from the configured LocalStack or AWS pipeline."
         />
       </Head>
       <Component {...pageProps} />

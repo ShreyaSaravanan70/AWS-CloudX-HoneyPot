@@ -1,0 +1,3 @@
+2026-09-11T12:00:00.123456Z [HoneyPotSSHTransport] New connection: 203.0.113.8:44444 (10.0.0.1:22) [session: abc123]
+2026-09-11T12:00:01.123456Z [SSHService ssh-userauth,203.0.113.8] login attempt [b'root'/b'password']
+2026-09-11T12:00:02.123456Z [cowrie.command.input,203.0.113.8] CMD: uname -a

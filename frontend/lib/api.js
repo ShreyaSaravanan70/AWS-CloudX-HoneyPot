@@ -52,4 +52,28 @@ export async function getConfig() {
   return request("/api/config");
 }
 
-export default { health, getStats, getEvents, getCharts, getPipeline, getConfig };
+export function uploadLog(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", BASE + "/api/uploads");
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+    xhr.onload = () => {
+      let body;
+      try { body = JSON.parse(xhr.responseText); } catch { body = {}; }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+      else reject(new Error(body.detail || `Upload failed (HTTP ${xhr.status}).`));
+    };
+    xhr.onerror = () => reject(new Error("Upload connection failed."));
+    const form = new FormData();
+    form.append("file", file);
+    xhr.send(form);
+  });
+}
+
+export async function getUploadStatus(uploadId) {
+  return request(`/api/uploads/${encodeURIComponent(uploadId)}`);
+}
+
+export default { health, getStats, getEvents, getCharts, getPipeline, getConfig, uploadLog, getUploadStatus };

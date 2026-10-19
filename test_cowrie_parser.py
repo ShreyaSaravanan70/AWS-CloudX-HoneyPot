@@ -7,9 +7,19 @@ import types
 from pathlib import Path
 from unittest import TestCase
 from unittest.mock import MagicMock, call
+from backend.cowrie import expected_events
 
 
 PARSER_PATH = Path(__file__).parent / "Lambda Functions" / "CowrieLogParser.py"
+
+
+class FakeStreamingBody:
+    def __init__(self, data):
+        self.stream = io.BytesIO(data)
+
+    def iter_lines(self):
+        while line := self.stream.readline():
+            yield line.rstrip(b"\r\n")
 
 
 def load_parser(monkeypatch):
@@ -74,19 +84,15 @@ def test_malformed_and_system_lines(monkeypatch):
 
 def test_lambda_handler_reads_s3_and_writes_expected_dynamodb_items(monkeypatch):
     parser, fake_boto3 = load_parser(monkeypatch)
+    fixture = (Path(__file__).parent / "test_cowrie_upload.txt").read_text(encoding="utf-8")
+    fixture_lines = fixture.splitlines()
     log_text = [
-        "\n".join([
-            "2026-09-11T12:00:00.123456Z [HoneyPotSSHTransport] New connection: "
-            "203.0.113.8:44444 (10.0.0.1:22) [session: abc123]",
-            "2026-09-11T12:00:01.123456Z [SSHService ssh-userauth,203.0.113.8] [abc123] "
-            "login attempt [b'root'/b'password'] failed",
-            "malformed line without a timestamp",
-        ]).encode("utf-8"),
-        "2026-09-11T12:00:02.123456Z [cowrie.command.input,203.0.113.8] [abc123] CMD: id".encode("utf-8"),
+        "\n".join(fixture_lines[:2]).encode("utf-8"),
+        fixture_lines[2].encode("utf-8"),
     ]
     s3 = MagicMock(name="s3 client")
     s3.get_object.side_effect = [
-        {"Body": io.BytesIO(body)} for body in log_text
+        {"Body": FakeStreamingBody(body)} for body in log_text
     ]
     fake_boto3.client.return_value = s3
 
@@ -136,8 +142,69 @@ def test_lambda_handler_reads_s3_and_writes_expected_dynamodb_items(monkeypatch)
     assert all("timestamp" in item and "session" in item for item in written)
     assert all(isinstance(item["session"], str) for item in written)
     assert all(isinstance(item["timestamp"], str) for item in written)
+    assert [item["source_key"] for item in written] == [
+        "incoming/cowrie log.json",
+        "incoming/cowrie log.json",
+        "incoming/second.log",
+    ]
     assert written[1]["input"] == "root:password"
-    assert written[2]["command"] == "id"
+    assert written[2]["command"] == "uname -a"
+    assert {(item["session"], item["timestamp"]) for item in written} == expected_events(fixture)
+
+
+def test_parser_error_logs_do_not_include_cowrie_payloads(monkeypatch):
+    parser, fake_boto3 = load_parser(monkeypatch)
+    s3 = MagicMock()
+    s3.get_object.return_value = {"Body": FakeStreamingBody(
+        b"2026-99-99T12:00:00.123456Z [SSHService] login attempt "
+        b"[b'root'/b'secret-password'] failed"
+    )}
+    fake_boto3.client.return_value = s3
+    batch = MagicMock()
+    context = MagicMock()
+    context.__enter__.return_value = batch
+    table = MagicMock()
+    table.batch_writer.return_value = context
+    fake_boto3.resource.return_value.Table.return_value = table
+
+    from unittest.mock import patch
+    with patch("builtins.print") as output:
+        parser.lambda_handler({"Records": [{"s3": {
+            "bucket": {"name": "logs"}, "object": {"key": "uploads/test.log"}
+        }}]}, None)
+    text = " ".join(str(call) for call in output.call_args_list)
+    assert "secret-password" not in text
+    assert "login attempt" not in text
+    assert "ValueError" in text
+
+
+def test_stream_processor_handles_insert_records_only(monkeypatch):
+    spec = importlib.util.spec_from_file_location(
+        "stream_processor", Path(__file__).parent / "Lambda Functions" / "LogDynamoDBToCloudWatch.py"
+    )
+    processor = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(processor)
+    event = {"Records": [
+        {"eventName": "INSERT", "dynamodb": {"NewImage": {
+            "session": {"S": "s1"}, "timestamp": {"S": "t1"},
+            "src_ip": {"S": "203.0.113.8"}, "eventid": {"S": "CowrieSSHFactory"},
+            "source_key": {"S": "uploads/test.log"},
+            "input": {"S": "root:very-secret-password"},
+            "command": {"S": "curl --token=secret-token"},
+        }}},
+        {"eventName": "MODIFY", "dynamodb": {"NewImage": {"session": {"S": "s2"}}}},
+        {"eventName": "REMOVE", "dynamodb": {"OldImage": {"session": {"S": "s3"}}}},
+    ]}
+    from unittest.mock import patch
+    with patch("builtins.print") as output:
+        assert processor.lambda_handler(event, None) == {"statusCode": 200}
+    text = " ".join(str(call) for call in output.call_args_list)
+    assert "s1" in text and "t1" in text
+    assert "203.0.113.8" in text and "CowrieSSHFactory" in text
+    assert "uploads/test.log" in text and "[REDACTED]" in text
+    assert "very-secret-password" not in text
+    assert "secret-token" not in text
+    assert "s2" not in text and "s3" not in text
 
 
 class _MonkeyPatch:

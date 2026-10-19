@@ -9,19 +9,15 @@ All queries respect this schema. We never scan the whole table on every
 request - recent events use a key-condition query on the sort key.
 """
 
-import boto3
 from botocore.exceptions import ClientError
-from datetime import datetime
+from datetime import datetime, timezone
 
-from .config import AWS_MODE, AWS_REGION, AWS_ENDPOINT_URL, AWS_PROFILE, HAA_DYNAMODB_TABLE
+from .config import AWS_MODE, HAA_DYNAMODB_TABLE
 
 
 def _client():
-    kwargs = {"region_name": AWS_REGION}
-    if AWS_ENDPOINT_URL:
-        kwargs["endpoint_url"] = AWS_ENDPOINT_URL
-    session = boto3.Session(profile_name=AWS_PROFILE, region_name=AWS_REGION)
-    return session.resource("dynamodb", **kwargs)
+    from .aws import resource as aws_resource
+    return aws_resource("dynamodb")
 
 
 def _table():
@@ -50,6 +46,33 @@ def scan_items(limit=200):
         if len(items) >= limit:
             break
     return items[:limit]
+
+
+def upload_events(object_key, expected_keys):
+    """Find all expected rows written by the parser for one S3 object."""
+    from boto3.dynamodb.conditions import Attr
+
+    table = _table()
+    found = set()
+    kwargs = {
+        "FilterExpression": Attr("source_key").eq(object_key),
+        "ProjectionExpression": "#session, #timestamp, #source",
+        "ExpressionAttributeNames": {
+            "#session": "session",
+            "#timestamp": "timestamp",
+            "#source": "source_key",
+        },
+        "ConsistentRead": True,
+    }
+    while True:
+        response = table.scan(**kwargs)
+        found.update(
+            (item["session"], item["timestamp"])
+            for item in response.get("Items", [])
+        )
+        if expected_keys.issubset(found) or "LastEvaluatedKey" not in response:
+            return found
+        kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
 
 
 def query_recent(limit=50):
@@ -108,18 +131,20 @@ def top_ips(limit=10):
 
 
 def _parse_ts(ts):
-    """Parse an ISO timestamp like 2026-09-11T12:00:00.123456 into a
-    datetime. Returns None if the value is not parseable."""
+    """Parse an ISO timestamp and normalize it to a timezone-aware UTC value."""
     if not ts:
         return None
     try:
-        return datetime.fromisoformat(ts)
+        parsed = datetime.fromisoformat(ts)
     except ValueError:
         # Fallback: strip trailing Z and microseconds if present
         try:
-            return datetime.strptime(ts.rstrip("Z"), "%Y-%m-%dT%H:%M:%S.%f")
+            parsed = datetime.strptime(ts.rstrip("Z"), "%Y-%m-%dT%H:%M:%S.%f")
         except ValueError:
             return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _bucket_key(dt, span_minutes):

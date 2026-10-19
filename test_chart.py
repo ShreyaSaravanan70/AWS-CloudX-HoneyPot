@@ -17,12 +17,16 @@ def fake_scan(limit=500):
 ns["scan_items"] = fake_scan
 
 print("=== _parse_ts tests ===")
-assert parse_ts("2026-09-11T12:00:00.123456") is not None
+from datetime import datetime, timezone
+naive_ts = parse_ts("2026-09-11T12:00:00.123456")
+offset_ts = parse_ts("2026-09-11T17:30:00.123456+05:30")
+assert naive_ts == datetime(2026, 9, 11, 12, 0, 0, 123456, tzinfo=timezone.utc)
+assert offset_ts == naive_ts
+assert naive_ts.tzinfo is timezone.utc and offset_ts.tzinfo is timezone.utc
 assert parse_ts("") is None
 assert parse_ts(None) is None
-print("  PASS: handles valid and invalid timestamps")
+print("  PASS: naive and offset timestamps normalize to aware UTC")
 
-from datetime import datetime
 print("=== _bucket_key span adaptation ===")
 dt = datetime(2026, 9, 11, 12, 7, 30)
 assert bucket_key(dt, 60) == datetime(2026, 9, 11, 12, 5, 0), bucket_key(dt, 60)
@@ -71,5 +75,18 @@ print("=== empty data ===")
 ns["_TEST_ITEMS"] = []
 assert events_over_time() == []
 print("  PASS: empty data returns []")
+
+print("=== mixed timezone chart regression ===")
+ns["_TEST_ITEMS"] = [
+    {"timestamp": "2026-09-11T12:00:00"},
+    {"timestamp": "2026-09-11T17:30:00+05:30"},
+    {"timestamp": "2026-09-11T12:10:00Z"},
+]
+mixed_result = events_over_time()
+assert {row["timestamp"]: row["events"] for row in mixed_result} == {
+    "12:00": 2,
+    "12:10": 1,
+}
+print("  PASS: mixed naive/aware values compare and bucket in UTC")
 
 print("\nALL CHART TESTS PASSED")

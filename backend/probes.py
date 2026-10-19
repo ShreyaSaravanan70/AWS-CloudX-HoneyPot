@@ -5,23 +5,18 @@ human-readable message. Nothing here creates, modifies, or deletes
 resources - only read-only describe/list calls.
 """
 
-import boto3
 from botocore.exceptions import ClientError, EndpointConnectionError
 
+from .aws import client as aws_client
 from .config import (
-    AWS_MODE, AWS_REGION, AWS_ENDPOINT_URL, AWS_PROFILE,
+    AWS_MODE, AWS_REGION,
     HAA_S3_BUCKET, HAA_DYNAMODB_TABLE,
     HAA_PARSER_LAMBDA, HAA_CLOUDWATCH_LAMBDA,
 )
 
 
 def _client(service, **extra):
-    kwargs = {"region_name": AWS_REGION}
-    if AWS_ENDPOINT_URL:
-        kwargs["endpoint_url"] = AWS_ENDPOINT_URL
-    kwargs.update(extra)
-    session = boto3.Session(profile_name=AWS_PROFILE, region_name=AWS_REGION)
-    return session.client(service, **kwargs)
+    return aws_client(service, **extra)
 
 
 def _ok(message, detail=None):
@@ -32,12 +27,28 @@ def _fail(message, detail=None):
     return {"status": "fail", "message": message, "detail": detail}
 
 
+def _client_failure(e, resource, permission, missing_codes=()):
+    error = e.response.get("Error", {})
+    code = error.get("Code", "Unknown")
+    status = e.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    detail = error.get("Message", str(e))
+    if code in missing_codes:
+        return _fail(f"{resource} not found", detail)
+    if code in {"AccessDenied", "AccessDeniedException", "UnauthorizedOperation"} or status == 403:
+        suffix = "; S3 may also return 403 for a missing bucket" if resource.startswith("S3 bucket") else ""
+        return _fail(f"Access denied checking {resource}; requires {permission}{suffix}", detail)
+    return _fail(f"Could not check {resource} ({code})", detail)
+
+
 def _probe_s3():
     try:
         _client("s3").head_bucket(Bucket=HAA_S3_BUCKET)
         return _ok(f"S3 bucket {HAA_S3_BUCKET} reachable")
     except ClientError as e:
-        return _fail(f"S3 bucket {HAA_S3_BUCKET} not reachable", str(e))
+        return _client_failure(
+            e, f"S3 bucket {HAA_S3_BUCKET}", "s3:ListBucket",
+            {"NoSuchBucket", "404", "NotFound"},
+        )
     except EndpointConnectionError as e:
         return _fail("S3 endpoint unreachable", str(e))
 
@@ -53,7 +64,10 @@ def _probe_dynamodb():
             {"stream_arn": streams, "streams_enabled": bool(streams)},
         )
     except ClientError as e:
-        return _fail(f"DynamoDB table {HAA_DYNAMODB_TABLE} not found", str(e))
+        return _client_failure(
+            e, f"DynamoDB table {HAA_DYNAMODB_TABLE}", "dynamodb:DescribeTable",
+            {"ResourceNotFoundException"},
+        )
     except EndpointConnectionError as e:
         return _fail("DynamoDB endpoint unreachable", str(e))
 
@@ -68,7 +82,9 @@ def _probe_lambda(name):
             return _ok(f"Lambda {name} is Active", {"runtime": runtime})
         return _fail(f"Lambda {name} is {state}", {"runtime": runtime})
     except ClientError as e:
-        return _fail(f"Lambda {name} not found", str(e))
+        return _client_failure(
+            e, f"Lambda {name}", "lambda:GetFunction", {"ResourceNotFoundException"}
+        )
     except EndpointConnectionError as e:
         return _fail("Lambda endpoint unreachable", str(e))
 
@@ -91,7 +107,10 @@ def _probe_event_source_mapping():
             "Stream trigger missing",
         )
     except ClientError as e:
-        return _fail("Could not list event source mappings", str(e))
+        return _client_failure(
+            e, f"event source mappings for {HAA_CLOUDWATCH_LAMBDA}",
+            "lambda:ListEventSourceMappings",
+        )
     except EndpointConnectionError as e:
         return _fail("Lambda endpoint unreachable", str(e))
 
@@ -105,7 +124,7 @@ def _probe_cloudwatch():
         c.describe_log_groups(limit=1)
         return _ok("CloudWatch Logs client available")
     except ClientError as e:
-        return _fail("CloudWatch Logs probe failed", str(e))
+        return _client_failure(e, "CloudWatch Logs", "logs:DescribeLogGroups")
     except EndpointConnectionError as e:
         return _fail("CloudWatch Logs endpoint unreachable", str(e))
 

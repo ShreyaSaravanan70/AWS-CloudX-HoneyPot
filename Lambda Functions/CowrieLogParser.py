@@ -129,37 +129,38 @@ def lambda_handler(event, context):
     table = dynamodb.Table(DYNAMODB_TABLE)
     try:
         current_sessions = {}  # Map IPs to session IDs
-        entries = []
+        processed = 0
 
-        for record in event["Records"]:
-            bucket = record["s3"]["bucket"]["name"]
-            key = unquote_plus(record["s3"]["object"]["key"])
-            obj = s3.get_object(Bucket=bucket, Key=key)
-            lines = obj['Body'].read().decode('utf-8').splitlines()
-
-            for line in lines:
-                if not line.strip():
-                    continue
-                try:
-                    parsed = parse_log_line(line, current_sessions)
-                    if parsed and parsed['timestamp'] and parsed['session'] != 'unknown':
-                        entries.append(parsed)
-                except Exception as e:
-                    print(f"Error processing line: {line}\n{str(e)}")
-
-        # Batch write to DynamoDB
         with table.batch_writer() as batch:
-            for entry in entries:
-                batch.put_item(Item={
-                    'session': entry['session'],
-                    'timestamp': entry['timestamp'],
-                    'src_ip': entry['src_ip'],
-                    'eventid': entry['eventid'],
-                    'input': entry['input'],
-                    'command': entry['command']
-                })
+            for record in event["Records"]:
+                bucket = record["s3"]["bucket"]["name"]
+                key = unquote_plus(record["s3"]["object"]["key"])
+                obj = s3.get_object(Bucket=bucket, Key=key)
 
-        print(f"Processed {len(entries)} entries from {len(event['Records'])} S3 objects")
+                for raw_line in obj['Body'].iter_lines():
+                    if not raw_line.strip():
+                        continue
+                    line = raw_line.decode('utf-8')
+                    try:
+                        parsed = parse_log_line(line, current_sessions)
+                        if parsed and parsed['timestamp'] and parsed['session'] != 'unknown':
+                            parsed['source_key'] = key
+                            batch.put_item(Item={
+                                'session': parsed['session'],
+                                'timestamp': parsed['timestamp'],
+                                'source_key': parsed['source_key'],
+                                'src_ip': parsed['src_ip'],
+                                'eventid': parsed['eventid'],
+                                'input': parsed['input'],
+                                'command': parsed['command']
+                            })
+                            processed += 1
+                    except Exception as e:
+                        # Log only safe metadata; Cowrie lines can contain
+                        # attempted passwords or commands with credentials.
+                        print(f"Error processing record in {key}: {type(e).__name__}")
+
+        print(f"Processed {processed} entries from {len(event['Records'])} S3 objects")
         return {'statusCode': 200}
 
     except Exception as e:

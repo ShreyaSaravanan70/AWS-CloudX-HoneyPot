@@ -3,6 +3,7 @@ WORKDIR /app
 COPY backend/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend ./backend
+COPY ["Lambda Functions/CowrieLogParser.py", "/app/CowrieLogParser.py"]
 ENV AWS_MODE=local
 ENV AWS_REGION=us-east-1
 ENV AWS_DEFAULT_REGION=us-east-1

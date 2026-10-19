@@ -8,6 +8,7 @@ services:
       AWS_ENDPOINT_URL: null
       AWS_ACCESS_KEY_ID: null
       AWS_SECRET_ACCESS_KEY: null
+      HAA_S3_BUCKET: aws-haas-hazel-demo-2026
       HAA_DYNAMODB_TABLE: CowrieLogs
     volumes:
       - "${USERPROFILE}/.aws:/root/.aws:ro"
