@@ -1,0 +1,7 @@
+2026-10-15T08:42:11.184Z [SSH-2.0-OpenSSH_9.3] New connection: 203.0.113.74:51862 (192.0.2.10:22) [session: demo_hz_20261015_09]
+2026-10-15T08:42:11.392Z [SSH-2.0-OpenSSH_9.3] remote version: SSH-2.0-OpenSSH_9.3
+2026-10-15T08:42:12.026Z [SSH-2.0-OpenSSH_9.3] kex algos: curve25519-sha256,diffie-hellman-group14-sha256
+2026-10-15T08:42:13.510Z [SSH-2.0-OpenSSH_9.3] authentication attempt [user: admin] [service: ssh-connection] [method: password]
+2026-10-15T08:42:14.031Z [SSH-2.0-OpenSSH_9.3] login attempt [user: admin] [password: <REDACTED>]
+2026-10-15T08:42:14.487Z [SSH-2.0-OpenSSH_9.3] login failed [user: admin]
+2026-10-15T08:42:15.102Z [SSH-2.0-OpenSSH_9.3] connection lost

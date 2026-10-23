@@ -1,0 +1,6 @@
+2026-10-14T09:25:21.654321Z [HoneyPotSSHTransport] New connection: 198.51.100.86:60331 (10.0.0.1:22) [session: demo_session_20261014_d4]
+2026-10-14T09:25:22.654321Z [SSHService ssh-userauth,198.51.100.86] login attempt [b'oracle'/b'oracle123']
+2026-10-14T09:25:23.654321Z [SSHService ssh-userauth,198.51.100.86] login attempt [b'guest'/b'guest']
+2026-10-14T09:25:24.654321Z [cowrie.command.input,198.51.100.86] CMD: uname -a
+2026-10-14T09:25:25.654321Z [cowrie.command.input,198.51.100.86] CMD: cat /etc/os-release
+2026-10-14T09:25:26.654321Z [cowrie.session.closed,198.51.100.86] Connection lost after 5 seconds

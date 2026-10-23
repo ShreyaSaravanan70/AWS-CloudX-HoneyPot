@@ -1,0 +1,7 @@
+2026-10-13T18:20:01.123456Z [HoneyPotSSHTransport] New connection: 198.51.100.42:51234 (10.0.0.1:22) [session: demo_session_20261013_a1]
+2026-10-13T18:20:02.123456Z [SSHService ssh-userauth,198.51.100.42] login attempt [b'admin'/b'admin123']
+2026-10-13T18:20:03.123456Z [SSHService ssh-userauth,198.51.100.42] login attempt [b'root'/b'toor']
+2026-10-13T18:20:04.123456Z [cowrie.command.input,198.51.100.42] CMD: whoami
+2026-10-13T18:20:05.123456Z [cowrie.command.input,198.51.100.42] CMD: uname -a
+2026-10-13T18:20:06.123456Z [cowrie.command.input,198.51.100.42] CMD: cat /etc/passwd
+2026-10-13T18:20:07.123456Z [cowrie.session.closed,198.51.100.42] Connection lost after 6 seconds

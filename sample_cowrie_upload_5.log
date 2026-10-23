@@ -1,0 +1,5 @@
+2026-10-14T09:10:01.123456Z [HoneyPotSSHTransport] New connection: 203.0.113.55:39412 (10.0.0.1:22) [session: demo_session_20261014_c3]
+2026-10-14T09:10:02.123456Z [SSHService ssh-userauth,203.0.113.55] login attempt [b'pi'/b'raspberry']
+2026-10-14T09:10:03.123456Z [cowrie.command.input,203.0.113.55] CMD: whoami
+2026-10-14T09:10:04.123456Z [cowrie.command.input,203.0.113.55] CMD: ls -la
+2026-10-14T09:10:05.123456Z [cowrie.session.closed,203.0.113.55] Connection lost after 4 seconds

@@ -1,0 +1,5 @@
+2026-10-14T17:05:01.123456Z [HoneyPotSSHTransport] New connection: 203.0.113.91:48120 (10.0.0.1:22) [session: demo_session_20261014_e5]
+2026-10-14T17:05:02.123456Z [SSHService ssh-userauth,203.0.113.91] login attempt [b'root'/b'password']
+2026-10-14T17:05:03.123456Z [cowrie.command.input,203.0.113.91] CMD: id
+2026-10-14T17:05:04.123456Z [cowrie.command.input,203.0.113.91] CMD: hostname
+2026-10-14T17:05:05.123456Z [cowrie.session.closed,203.0.113.91] Connection lost after 4 seconds

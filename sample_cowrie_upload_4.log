@@ -1,0 +1,7 @@
+2026-10-14T08:45:10.123456Z [HoneyPotSSHTransport] New connection: 192.0.2.77:45821 (10.0.0.1:22) [session: demo_session_20261014_b2]
+2026-10-14T08:45:11.123456Z [SSHService ssh-userauth,192.0.2.77] login attempt [b'test'/b'test123']
+2026-10-14T08:45:12.123456Z [SSHService ssh-userauth,192.0.2.77] login attempt [b'ubuntu'/b'letmein']
+2026-10-14T08:45:13.123456Z [cowrie.command.input,192.0.2.77] CMD: id
+2026-10-14T08:45:14.123456Z [cowrie.command.input,192.0.2.77] CMD: pwd
+2026-10-14T08:45:15.123456Z [cowrie.command.input,192.0.2.77] CMD: ps aux
+2026-10-14T08:45:16.123456Z [cowrie.session.closed,192.0.2.77] Connection lost after 6 seconds

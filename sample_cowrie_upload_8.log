@@ -1,0 +1,7 @@
+2026-10-14T17:22:11.654321Z [HoneyPotSSHTransport] New connection: 198.51.100.143:53772 (10.0.0.1:22) [session: demo_session_20261014_f6]
+2026-10-14T17:22:12.654321Z [SSHService ssh-userauth,198.51.100.143] login attempt [b'debian'/b'debian']
+2026-10-14T17:22:13.654321Z [SSHService ssh-userauth,198.51.100.143] login attempt [b'user'/b'123456']
+2026-10-14T17:22:14.654321Z [cowrie.command.input,198.51.100.143] CMD: whoami
+2026-10-14T17:22:15.654321Z [cowrie.command.input,198.51.100.143] CMD: pwd
+2026-10-14T17:22:16.654321Z [cowrie.command.input,198.51.100.143] CMD: ls -la
+2026-10-14T17:22:17.654321Z [cowrie.session.closed,198.51.100.143] Connection lost after 6 seconds
